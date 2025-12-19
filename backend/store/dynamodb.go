@@ -7,6 +7,7 @@ import (
 	"github.com/Kai-Kota/ChatApp2/backend/types"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	ddbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 type DynamoDBStore struct {
@@ -31,6 +32,15 @@ func NewDynamoDBStore(ctx context.Context, tableName string) *DynamoDBStore {
 }
 
 func (d *DynamoDBStore) Put(ctx context.Context, p types.Product) error {
+	response, err := d.client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: &d.tableName,
+		Key: map[string]ddbtypes.AttributeValue{
+			"id": &ddbtypes.AttributeValueMemberS{Value: p.Id},
+		},
+	})
+}
+
+func (d *DynamoDBStore) Get(ctx context.Context, id string) (*types.Product, error) {
 	// Implementation goes here
-	return nil
+	return nil, nil
 }

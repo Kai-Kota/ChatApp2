@@ -7,7 +7,6 @@ import (
 	"github.com/Kai-Kota/ChatApp2/backend/domain"
 	"github.com/Kai-Kota/ChatApp2/backend/handlers"
 	"github.com/Kai-Kota/ChatApp2/backend/store"
-
 	"github.com/aws/aws-lambda-go/lambda"
 )
 

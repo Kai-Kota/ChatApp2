@@ -4,4 +4,5 @@ import "context"
 
 type Store interface {
 	Put(context.Context, Product) error
+	Get(context.Context, string) (*Product, error)
 }

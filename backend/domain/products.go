@@ -41,3 +41,12 @@ func (d *Products) PutProduct(ctx context.Context, id string, body []byte) (*typ
 
 	return &product, nil
 }
+
+func (d *Products) GetProduct(ctx context.Context, id string) (*types.Product, error) {
+	product, err := d.store.Get(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("%v", err)
+	}
+
+	return product, nil
+}

@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Globals:
+  Function:
+    MemorySize: 128
+    Architectures:
+    - x86_64
+    Handler: bootstrap
+    Runtime: go1.x
+    Timeout: 5
+    Tracing: Active
+    Environment:
+      Variables:
+        TABLE:
+          Ref: Table
+Resources:
+  GetProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: GetProductFunction
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /{id}
+            Method: GET
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action: dynamodb:GetItem
+          Resource:
+            Fn::GetAtt:
+            - Table
+            - Arn
+    Metadata:
+      SamResourceId: GetProductFunction
+  PutProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: PutProductFunction
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /{id}
+            Method: PUT
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action: dynamodb:PutItem
+          Resource:
+            Fn::GetAtt:
+            - Table
+            - Arn
+    Metadata:
+      SamResourceId: PutProductFunction
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+      - AttributeName: id
+        KeyType: HASH
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+  EventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name:
+        Ref: AWS::StackName
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value:
+      Fn::Sub: https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/
