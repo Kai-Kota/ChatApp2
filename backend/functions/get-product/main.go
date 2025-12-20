@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/Kai-Kota/ChatApp2/backend/domain"
@@ -12,6 +13,7 @@ import (
 
 func main() {
 	tableName, ok := os.LookupEnv("TABLE")
+	fmt.Println("Table Name:", tableName)
 	if !ok {
 		panic("Need TABLE environment variable")
 	}
