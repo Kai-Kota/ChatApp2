@@ -1,9 +1,9 @@
 package types
 
 type Product struct {
-	Id    string `dynamodbv:"id" json:"id"`
-	Name  string `dynamodbv:"name" json:"name"`
-	Price uint   `dynamodbv:"price" json:"price"`
+	Id    string `dynamodbav:"id" json:"id"`
+	Name  string `dynamodbav:"name" json:"name"`
+	Price uint   `dynamodbav:"price" json:"price"`
 }
 
 type ProductRange struct {

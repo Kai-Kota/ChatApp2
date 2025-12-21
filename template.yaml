@@ -6,12 +6,14 @@ Globals:
     MemorySize: 128
     Architectures: ["x86_64"]
     Handler: bootstrap
-    Runtime: provided.al2
+    Runtime: go1.x
     Timeout: 5
     Tracing: Active
     Environment:
       Variables:
         TABLE: !Ref Table
+        DYNAMODB_ENDPOINT: ""
+        AWS_REGION: !Ref AWS::Region
 
 Resources:
   GetProductFunction:

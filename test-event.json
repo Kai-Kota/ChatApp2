@@ -1,0 +1,19 @@
+{
+  "version": "2.0",
+  "routeKey": "GET /{id}",
+  "rawPath": "/1",
+  "rawQueryString": "",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "requestContext": {
+    "http": {
+      "method": "GET",
+      "path": "/1"
+    }
+  },
+  "pathParameters": {
+    "id": "1"
+  },
+  "isBase64Encoded": false
+}

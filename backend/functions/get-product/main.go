@@ -13,7 +13,7 @@ import (
 
 func main() {
 	tableName, ok := os.LookupEnv("TABLE")
-	fmt.Println("Table Name:", tableName)
+	fmt.Println(tableName)
 	if !ok {
 		panic("Need TABLE environment variable")
 	}
