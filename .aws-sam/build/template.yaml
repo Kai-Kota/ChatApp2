@@ -16,6 +16,24 @@ Globals:
         DYNAMODB_ENDPOINT: ''
         AWS_REGION:
           Ref: AWS::Region
+        PROFILE: ''
+        CLIENT_ID:
+          Ref: ClientId
+        CLIENT_SECRET:
+          Ref: ClientSecret
+  Api:
+    Cors:
+      AllowOrigins:
+      - http://localhost:3000
+      AllowMethods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+      AllowHeaders:
+      - Content-Type
+      - Authorization
 Resources:
   GetProductFunction:
     Type: AWS::Serverless::Function
@@ -59,6 +77,69 @@ Resources:
             - Arn
     Metadata:
       SamResourceId: PutProductFunction
+  AuthUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: AuthUserFunction
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /auth/signup
+            Method: POST
+        OptionsEvent:
+          Type: HttpApi
+          Properties:
+            Path: /auth/signup
+            Method: OPTIONS
+      Environment:
+        Variables:
+          AUTH_TABLE: ChatAppAuth
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          Resource:
+            Fn::GetAtt:
+            - Table
+            - Arn
+    Metadata:
+      SamResourceId: AuthUserFunction
+  AuthLoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: AuthLoginFunction
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /auth/login
+            Method: POST
+        OptionsEvent:
+          Type: HttpApi
+          Properties:
+            Path: /auth/login
+            Method: OPTIONS
+      Environment:
+        Variables:
+          AUTH_TABLE: ChatAppAuth
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:GetItem
+          Resource:
+            Fn::GetAtt:
+            - Table
+            - Arn
+    Metadata:
+      SamResourceId: AuthLoginFunction
   Table:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -76,6 +157,13 @@ Resources:
     Properties:
       Name:
         Ref: AWS::StackName
+  HttpApiCorsConfig:
+    Type: AWS::ApiGatewayV2::Stage
+    DependsOn: ServerlessHttpApi
+    Properties:
+      ApiId:
+        Ref: ServerlessHttpApi
+      StageName: $default
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL

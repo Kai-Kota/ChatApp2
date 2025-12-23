@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/header";
 
-export default function SignupPage() {
+export default function LoginPage() {
     const router = useRouter();
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -28,11 +28,10 @@ export default function SignupPage() {
 
         setLoading(true);
         try {
-            const res = await fetch("http://localhost:8080/login", {
+            const res = await fetch("http://localhost:3001/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password }),
-                credentials: "include",
+                body: JSON.stringify({ user_name: username, password }),
             });
 
             if (!res.ok) {
@@ -41,8 +40,10 @@ export default function SignupPage() {
                 setLoading(false);
                 return;
             }
-            console.log(await(res).json())
-            if (res.ok) console.log("Signup successful");
+            const data = await res.json();
+            const token = data.token;
+            localStorage.setItem("authToken", token);
+            console.log("Login successful, token saved");
 
             setSuccess("ログイン中...");
             setUsername("");

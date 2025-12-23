@@ -1,0 +1,17 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /auth",
+  "rawPath": "/auth",
+  "rawQueryString": "",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/auth"
+    }
+  },
+  "body": "{\"user_name\":\"alice\",\"password\":\"secret123\"}",
+  "isBase64Encoded": false
+}

@@ -28,10 +28,10 @@ export default function SignupPage() {
 
         setLoading(true);
         try {
-            const res = await fetch("http://localhost:8080/signup", {
+            const res = await fetch("http://localhost:3001/auth/signup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ user_name: username, password }),
             });
 
             if (!res.ok) {
@@ -46,7 +46,7 @@ export default function SignupPage() {
             setSuccess("登録が完了しました。ログインページへ移動します...");
             setUsername("");
             setPassword("");
-            setTimeout(() => router.push("/home"), 1200);
+            setTimeout(() => router.push("/login"), 1200);
         } catch (err) {
             setError("ネットワークエラーが発生しました。");
         } finally {

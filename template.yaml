@@ -14,6 +14,22 @@ Globals:
         TABLE: !Ref Table
         DYNAMODB_ENDPOINT: ""
         AWS_REGION: !Ref AWS::Region
+        PROFILE: ""
+        CLIENT_ID: !Ref ClientId
+        CLIENT_SECRET: !Ref ClientSecret
+  Api:
+    Cors:
+      AllowOrigins:
+        - http://localhost:3000
+      AllowMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      AllowHeaders:
+        - Content-Type
+        - Authorization
 
 Resources:
   GetProductFunction:
@@ -49,6 +65,61 @@ Resources:
             - Effect: Allow
               Action: dynamodb:PutItem
               Resource: !GetAtt Table.Arn
+  
+  AuthUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/functions/auth-user/
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /auth/signup
+            Method: POST
+        OptionsEvent:
+          Type: HttpApi
+          Properties:
+            Path: /auth/signup
+            Method: OPTIONS
+      Environment:
+        Variables:
+          AUTH_TABLE: ChatAppAuth
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+              Resource: !GetAtt Table.Arn
+
+  AuthLoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/functions/auth-login/
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /auth/login
+            Method: POST
+        OptionsEvent:
+          Type: HttpApi
+          Properties:
+            Path: /auth/login
+            Method: OPTIONS
+      Environment:
+        Variables:
+          AUTH_TABLE: ChatAppAuth
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !GetAtt Table.Arn
 
   Table:
     Type: AWS::DynamoDB::Table
@@ -67,6 +138,13 @@ Resources:
     Type: AWS::Events::EventBus
     Properties:
       Name: !Ref AWS::StackName
+
+  HttpApiCorsConfig:
+    Type: AWS::ApiGatewayV2::Stage
+    DependsOn: ServerlessHttpApi
+    Properties:
+      ApiId: !Ref ServerlessHttpApi
+      StageName: "$default"
 
 Outputs:
   ApiUrl:

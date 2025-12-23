@@ -18,4 +18,22 @@ manifest_hash = ""
 packagetype = "Zip"
 functions = ["PutProductFunction"]
 
+[function_build_definitions.c57ced12-ebb1-4f1d-b498-ff8d495aebb1]
+codeuri = "C:\\Users\\ifusm\\Desktop\\MyWork\\ChatApp2\\backend\\functions\\auth-user"
+runtime = "go1.x"
+architecture = "x86_64"
+handler = "bootstrap"
+manifest_hash = ""
+packagetype = "Zip"
+functions = ["AuthUserFunction"]
+
+[function_build_definitions.8623ebe2-d81f-4617-a4be-2d1c8dbbb490]
+codeuri = "C:\\Users\\ifusm\\Desktop\\MyWork\\ChatApp2\\backend\\functions\\auth-login"
+runtime = "go1.x"
+architecture = "x86_64"
+handler = "bootstrap"
+manifest_hash = ""
+packagetype = "Zip"
+functions = ["AuthLoginFunction"]
+
 [layer_build_definitions]
