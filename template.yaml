@@ -31,7 +31,185 @@ Globals:
         - Content-Type
         - Authorization
 
+Parameters:
+  ClientId:
+    Type: String
+    Default: ""
+  ClientSecret:
+    Type: String
+    Default: ""
+  IncludeWebSocket:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+
+Conditions:
+  IncludeWebSocketCondition: !Equals [!Ref IncludeWebSocket, "true"]
+
 Resources:
+  # WebSocket API
+  ChatWebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Condition: IncludeWebSocketCondition
+    Properties:
+      Name: ChatWebSocketAPI
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: "$request.body.action"
+
+  ConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Condition: IncludeWebSocketCondition
+    Properties:
+      ApiId: !Ref ChatWebSocketApi
+      RouteKey: $connect
+      AuthorizationType: NONE
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref ConnectIntegration
+
+  ConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Condition: IncludeWebSocketCondition
+    Properties:
+      ApiId: !Ref ChatWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WebSocketConnectFunction.Arn}/invocations
+
+  DisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Condition: IncludeWebSocketCondition
+    Properties:
+      ApiId: !Ref ChatWebSocketApi
+      RouteKey: $disconnect
+      AuthorizationType: NONE
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref DisconnectIntegration
+
+  DisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Condition: IncludeWebSocketCondition
+    Properties:
+      ApiId: !Ref ChatWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WebSocketDisconnectFunction.Arn}/invocations
+
+  SendMessageRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Condition: IncludeWebSocketCondition
+    Properties:
+      ApiId: !Ref ChatWebSocketApi
+      RouteKey: sendMessage
+      AuthorizationType: NONE
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref SendMessageIntegration
+
+  SendMessageIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Condition: IncludeWebSocketCondition
+    Properties:
+      ApiId: !Ref ChatWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WebSocketSendMessageFunction.Arn}/invocations
+
+  WebSocketDeployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    Condition: IncludeWebSocketCondition
+    DependsOn:
+      - ConnectRoute
+      - DisconnectRoute
+      - SendMessageRoute
+    Properties:
+      ApiId: !Ref ChatWebSocketApi
+
+  WebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Condition: IncludeWebSocketCondition
+    Properties:
+      StageName: dev
+      DeploymentId: !Ref WebSocketDeployment
+      ApiId: !Ref ChatWebSocketApi
+
+  WebSocketConnectFunction:
+    Type: AWS::Serverless::Function
+    Condition: IncludeWebSocketCondition
+    Properties:
+      CodeUri: backend/functions/ws-connect/
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE: ChatAppWebSocketConnections
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: ChatAppWebSocketConnections
+
+  WebSocketConnectPermission:
+    Type: AWS::Lambda::Permission
+    Condition: IncludeWebSocketCondition
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WebSocketConnectFunction
+      Principal: apigateway.amazonaws.com
+
+  WebSocketDisconnectFunction:
+    Type: AWS::Serverless::Function
+    Condition: IncludeWebSocketCondition
+    Properties:
+      CodeUri: backend/functions/ws-disconnect/
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE: ChatAppWebSocketConnections
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: ChatAppWebSocketConnections
+
+  WebSocketDisconnectPermission:
+    Type: AWS::Lambda::Permission
+    Condition: IncludeWebSocketCondition
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WebSocketDisconnectFunction
+      Principal: apigateway.amazonaws.com
+
+  WebSocketSendMessageFunction:
+    Type: AWS::Serverless::Function
+    Condition: IncludeWebSocketCondition
+    Properties:
+      CodeUri: backend/functions/ws-sendmessage/
+      Timeout: 30
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE: ChatAppWebSocketConnections
+          MESSAGES_TABLE: ChatAppMessages
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: ChatAppWebSocketConnections
+        - DynamoDBCrudPolicy:
+            TableName: ChatAppMessages
+        - Statement:
+          - Effect: Allow
+            Action:
+              - 'execute-api:ManageConnections'
+            Resource:
+              - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ChatWebSocketApi}/*'
+
+  WebSocketSendMessagePermission:
+    Type: AWS::Lambda::Permission
+    Condition: IncludeWebSocketCondition
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WebSocketSendMessageFunction
+      Principal: apigateway.amazonaws.com
+
   GetProductFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -121,6 +299,208 @@ Resources:
                 - dynamodb:GetItem
               Resource: !GetAtt Table.Arn
 
+  CreateRoomFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/functions/create-room/
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /user/rooms
+            Method: POST
+        OptionsEvent:
+          Type: HttpApi
+          Properties:
+            Path: /user/rooms
+            Method: OPTIONS
+      Environment:
+        Variables:
+          ROOM_TABLE: ChatAppRooms
+          MEMBERS_TABLE: ChatAppRoomMembers
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource:
+                - !GetAtt RoomTable.Arn
+                - !GetAtt RoomMembersTable.Arn
+
+  GetRoomFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/functions/get-room/
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /user/rooms/{room_id}
+            Method: GET
+        OptionsEvent:
+          Type: HttpApi
+          Properties:
+            Path: /user/rooms/{room_id}
+            Method: OPTIONS
+      Environment:
+        Variables:
+          ROOM_TABLE: ChatAppRooms
+          MEMBERS_TABLE: ChatAppRoomMembers
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+              Resource:
+                - !GetAtt RoomTable.Arn
+                - !GetAtt RoomMembersTable.Arn
+
+  GetUserRoomsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/functions/get-user-rooms/
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /rooms/user
+            Method: GET
+        ApiUserRooms:
+          Type: HttpApi
+          Properties:
+            Path: /user/rooms
+            Method: GET
+        OptionsEvent:
+          Type: HttpApi
+          Properties:
+            Path: /rooms/user
+            Method: OPTIONS
+      Environment:
+        Variables:
+          ROOM_TABLE: ChatAppRooms
+          MEMBERS_TABLE: ChatAppRoomMembers
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+              Resource:
+                - !GetAtt RoomTable.Arn
+                - !GetAtt RoomMembersTable.Arn
+                - !Sub "${RoomMembersTable.Arn}/index/*"
+
+  GetMessagesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/functions/get-messages/
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /rooms/{room_id}/messages
+            Method: GET
+        OptionsEvent:
+          Type: HttpApi
+          Properties:
+            Path: /rooms/{room_id}/messages
+            Method: OPTIONS
+      Environment:
+        Variables:
+          MESSAGES_TABLE: ChatAppMessages
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+              Resource:
+                - !GetAtt MessagesTable.Arn
+
+  RoomTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ChatAppRooms
+      AttributeDefinitions:
+        - AttributeName: room_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: room_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  RoomMembersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ChatAppRoomMembers
+      AttributeDefinitions:
+        - AttributeName: room_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: room_id
+          KeyType: HASH
+        - AttributeName: user_id
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: UserRoomsIndex
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: room_id
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+  MessagesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ChatAppMessages
+      AttributeDefinitions:
+        - AttributeName: room_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: room_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  WebSocketConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ChatAppWebSocketConnections
+      AttributeDefinitions:
+        - AttributeName: connection_id
+          AttributeType: S
+        - AttributeName: room_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: connection_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: RoomConnectionsIndex
+          KeySchema:
+            - AttributeName: room_id
+              KeyType: HASH
+            - AttributeName: connection_id
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
   Table:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -150,3 +530,8 @@ Outputs:
   ApiUrl:
     Description: "API Gateway endpoint URL"
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/"
+  
+  WebSocketURL:
+    Description: "WebSocket API URL"
+    Value: !Sub "wss://${ChatWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/dev"
+    Condition: IncludeWebSocketCondition

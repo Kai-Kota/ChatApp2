@@ -1,4 +1,4 @@
 export type MessageType = {
-    userId: number
+    userId: string
     content: string
 }

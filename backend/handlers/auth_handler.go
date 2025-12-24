@@ -71,9 +71,10 @@ func (h *AuthHandler) HandleOptions(ctx context.Context, event events.APIGateway
 	return events.APIGatewayV2HTTPResponse{
 		StatusCode: http.StatusOK,
 		Headers: map[string]string{
-			"Access-Control-Allow-Origin":  "http://localhost:3000",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
+			"Access-Control-Allow-Origin":      "http://localhost:3000",
+			"Access-Control-Allow-Methods":     "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Headers":     "Content-Type, Authorization, x-user-id",
+			"Access-Control-Allow-Credentials": "true",
 		},
 		Body:            "",
 		IsBase64Encoded: false,
@@ -89,10 +90,11 @@ func response(code int, object interface{}) events.APIGatewayV2HTTPResponse {
 	return events.APIGatewayV2HTTPResponse{
 		StatusCode: code,
 		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "http://localhost:3000",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-			"Access-Control-Allow-Headers": "Content-Type",
+			"Content-Type":                     "application/json",
+			"Access-Control-Allow-Origin":      "http://localhost:3000",
+			"Access-Control-Allow-Methods":     "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Headers":     "Content-Type, Authorization, x-user-id",
+			"Access-Control-Allow-Credentials": "true",
 		},
 		Body:            string(marshalled),
 		IsBase64Encoded: false,
@@ -109,10 +111,11 @@ func errResponse(status int, body string) events.APIGatewayV2HTTPResponse {
 	return events.APIGatewayV2HTTPResponse{
 		StatusCode: status,
 		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "http://localhost:3000",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-			"Access-Control-Allow-Headers": "Content-Type",
+			"Content-Type":                     "application/json",
+			"Access-Control-Allow-Origin":      "http://localhost:3000",
+			"Access-Control-Allow-Methods":     "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Headers":     "Content-Type, Authorization, x-user-id",
+			"Access-Control-Allow-Credentials": "true",
 		},
 		Body: string(messageBytes),
 	}

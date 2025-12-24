@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/header";
+// 削除: 不正なトップレベル参照（username未定義）
 
 export default function LoginPage() {
     const router = useRouter();
@@ -43,6 +44,7 @@ export default function LoginPage() {
             const data = await res.json();
             const token = data.token;
             localStorage.setItem("authToken", token);
+            localStorage.setItem("userName", username);
             console.log("Login successful, token saved");
 
             setSuccess("ログイン中...");

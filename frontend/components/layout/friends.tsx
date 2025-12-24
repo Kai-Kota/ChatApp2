@@ -3,12 +3,20 @@
 import { useEffect, useState } from "react";
 import Room from "../ui/room";
 
-type Room = {
-  id: number
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
+
+type RoomSummary = {
+  id: string;
+  name: string;
+};
+
+interface FriendListProps {
+  selectedRoomId: string;
+  onRoomSelect: (roomId: string) => void;
 }
 
-export default function FriendList() {
-  const [roomList, setRoomList] = useState<Room[]>([]);
+export default function FriendList({ selectedRoomId, onRoomSelect }: FriendListProps) {
+  const [roomList, setRoomList] = useState<RoomSummary[]>([]);
   const [newFriend, setNewFriend] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -19,10 +27,17 @@ export default function FriendList() {
   }, []);
 
   const fetchRooms = async () => {
+    const userId = typeof window !== "undefined" ? localStorage.getItem("userName") : null;
+    if (!userId) {
+      setError("ログインしてください。");
+      return;
+    }
     try { 
-      const res = await fetch("http://localhost:8080/user/rooms", {
+      const res = await fetch(`${API_BASE}/rooms/user`, {
         method: "GET",
-        credentials: "include",
+        headers: {
+          "x-user-id": userId,
+        },
       });
       // 204 No Content の場合は空配列を返す
       if (res.status === 204) {
@@ -31,34 +46,22 @@ export default function FriendList() {
         return;
       }
 
-      // Content-Type を見て JSON かどうかを判定し、安全に読み取る
-      const contentType = (res.headers.get("content-type") || "").toLowerCase();
-      let data: any = null;
-      if (contentType.includes("application/json")) {
-        try {
-          data = await res.json();
-        } catch (e) {
-          data = null;
-        }
-      } else {
-        // JSON でない場合は text として読み取り、JSON なら parse する
-        const text = await res.text();
-        try {
-          data = text ? JSON.parse(text) : null;
-        } catch (e) {
-          data = text || null;
-        }
-      }
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
         const msg = (data && (data.message || data.error)) || `エラー: ${res.status}`;
         setError(msg);
+        return;
       }
 
-      let rooms: Room[] = [];
-      for(let i = 0; i < data.data.length; i++){;
-        rooms.push({id: data.data[i].ID})
-      }
+      const roomsData = Array.isArray(data) ? data : data?.rooms || [];
+      const rooms: RoomSummary[] = roomsData
+        .map((r: any) => ({
+          id: r.room_id || r.roomId || String(r.id || ""),
+          name: r.room_name || r.roomName || "Room",
+        }))
+        .filter((r: RoomSummary) => !!r.id);
+
       setRoomList(rooms);
       setError(null);
     } catch (err) {
@@ -70,22 +73,44 @@ export default function FriendList() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    const userId = typeof window !== "undefined" ? localStorage.getItem("userName") : null;
+    if (!userId) {
+      setError("ログインしてください。");
+      return;
+    }
+    if (!newFriend.trim()) {
+      setError("相手のユーザー名を入力してください。");
+      return;
+    }
     setNewFriend("");
     setLoading(true);
     try{
-      const res = await fetch("http://localhost:8080/user/rooms", {
+      const res = await fetch(`${API_BASE}/user/rooms`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pertner: newFriend }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify({ user_name: newFriend.trim() }),
       });
+      const data = await res.json().catch(() => null);
       if(!res.ok){
-        const data = await res.json().catch(() => ({}));
-        setError(data.message || `エラー: ${res.status}`);
+        const msg = (data && (data.message || data.error)) || `エラー: ${res.status}`;
+        setError(msg);
         setLoading(false);
         return;
       }
-      if(res.ok) console.log("Friend added");
+      if (data) {
+        const newRoom: RoomSummary = {
+          id: data.room_id || data.roomId || String(data.id || newFriend),
+          name: data.room_name || data.roomName || newFriend,
+        };
+        setRoomList((prev) => {
+          // 既存の同じIDがあれば追加しない
+          if (prev.some((r) => r.id === newRoom.id)) return prev;
+          return [...prev, newRoom];
+        });
+      }
 
       setSuccess("フレンドを追加しました。");
 
@@ -98,11 +123,14 @@ export default function FriendList() {
   
   return (
     <div className="w-80 h-full bg-gray-100 flex flex-col shadow-md">
-      <ul className="flex-auto">
+      <ul className="flex-auto overflow-y-auto">
         {roomList.map((room) => (
           <Room 
             key={room.id}
-            name={`Friend ${room.id}`}
+            name={room.name}
+            subtitle={room.id}
+            isSelected={room.id === selectedRoomId}
+            onClick={() => onRoomSelect(room.id)}
           />
         ))}
       </ul>

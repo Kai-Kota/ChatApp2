@@ -101,7 +101,7 @@ func (s *AuthStore) Login(userName, password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if out.Item == nil || len(out.Item) == 0 {
+	if len(out.Item) == 0 {
 		return "", errors.New("user not found")
 	}
 

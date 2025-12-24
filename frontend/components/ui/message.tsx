@@ -1,24 +1,21 @@
 type Message = {
-    userid: number
+    userid: string
     content: string
+    isOwn?: boolean
 }
 
-export default function Message({content} :Message){
+export default function Message({ content, isOwn = false }: Message){
+    const container = isOwn ? "flex items-start gap-3 justify-end" : "flex items-start gap-3";
+    const bubble = isOwn
+      ? "bg-blue-500 text-white px-3 py-2 rounded-lg shadow-sm max-w-[70%] text-sm"
+      : "bg-white text-gray-800 px-3 py-2 rounded-lg shadow-sm max-w-[70%] text-sm";
+    const avatar = isOwn ? "w-8 h-8 rounded-full bg-blue-400 flex-shrink-0" : "w-8 h-8 rounded-full bg-gray-300 flex-shrink-0";
+
     return (
-    // 送信用
-      <div className="flex items-start gap-3 justify-end">
-        <div className="bg-blue-500 text-white px-3 py-2 rounded-lg shadow-sm max-w-[70%] text-sm">
-          {content}
-        </div>
-        <div className="w-8 h-8 rounded-full bg-blue-400 flex-shrink-0" />
-      </div>     
+      <div className={container}>
+        {!isOwn && <div className={avatar} />}
+        <div className={bubble}>{content}</div>
+        {isOwn && <div className={avatar} />}
+      </div>
     )
 }
-
-// 受信用
-<div className="flex items-start gap-3">
-  <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0" />
-  <div className="bg-white px-3 py-2 rounded-lg shadow-sm max-w-[70%] text-sm">
-    元気？
-  </div>
-</div>
