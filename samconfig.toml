@@ -1,12 +1,13 @@
 version = 0.1
 
 [default.deploy.parameters]
-stack_name = "sam-app"
+stack_name = "ChatApp2"
 resolve_s3 = true
-s3_prefix = "sam-app"
-region = "ap-northeast-1"
+s3_prefix = "ChatApp2"
 capabilities = "CAPABILITY_IAM"
 image_repositories = []
+confirm_changeset = true
+parameter_overrides = "ClientId=\"\" ClientSecret=\"\" IncludeWebSocket=\"true\""
 
 [default.global.parameters]
 region = "ap-northeast-1"

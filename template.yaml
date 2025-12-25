@@ -6,17 +6,26 @@ Globals:
     MemorySize: 128
     Architectures: ["x86_64"]
     Handler: bootstrap
-    Runtime: go1.x
+    Runtime: provided.al2023
     Timeout: 5
     Tracing: Active
     Environment:
       Variables:
         TABLE: !Ref Table
-        DYNAMODB_ENDPOINT: ""
-        AWS_REGION: !Ref AWS::Region
-        PROFILE: ""
-        CLIENT_ID: !Ref ClientId
-        CLIENT_SECRET: !Ref ClientSecret
+  HttpApi:
+    CorsConfiguration:
+      AllowOrigins:
+        - "*"
+      AllowMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      AllowHeaders:
+        - Content-Type
+        - Authorization
+        - x-user-id
   Api:
     Cors:
       AllowOrigins:
@@ -140,15 +149,16 @@ Resources:
   WebSocketConnectFunction:
     Type: AWS::Serverless::Function
     Condition: IncludeWebSocketCondition
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: backend/functions/ws-connect/
       Environment:
         Variables:
-          CONNECTIONS_TABLE: ChatAppWebSocketConnections
-          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+          CONNECTIONS_TABLE: !Ref WebSocketConnectionsTable
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: ChatAppWebSocketConnections
+              TableName: !Ref WebSocketConnectionsTable
 
   WebSocketConnectPermission:
     Type: AWS::Lambda::Permission
@@ -161,15 +171,16 @@ Resources:
   WebSocketDisconnectFunction:
     Type: AWS::Serverless::Function
     Condition: IncludeWebSocketCondition
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: backend/functions/ws-disconnect/
       Environment:
         Variables:
-          CONNECTIONS_TABLE: ChatAppWebSocketConnections
-          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+          CONNECTIONS_TABLE: !Ref WebSocketConnectionsTable
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: ChatAppWebSocketConnections
+              TableName: !Ref WebSocketConnectionsTable
 
   WebSocketDisconnectPermission:
     Type: AWS::Lambda::Permission
@@ -182,19 +193,20 @@ Resources:
   WebSocketSendMessageFunction:
     Type: AWS::Serverless::Function
     Condition: IncludeWebSocketCondition
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: backend/functions/ws-sendmessage/
       Timeout: 30
       Environment:
         Variables:
-          CONNECTIONS_TABLE: ChatAppWebSocketConnections
-          MESSAGES_TABLE: ChatAppMessages
-          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+          CONNECTIONS_TABLE: !Ref WebSocketConnectionsTable
+          MESSAGES_TABLE: !Ref MessagesTable
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: ChatAppWebSocketConnections
+            TableName: !Ref WebSocketConnectionsTable
         - DynamoDBCrudPolicy:
-            TableName: ChatAppMessages
+            TableName: !Ref MessagesTable
         - Statement:
           - Effect: Allow
             Action:
@@ -212,6 +224,8 @@ Resources:
 
   GetProductFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: backend/functions/get-product/
       Events:
@@ -229,6 +243,8 @@ Resources:
 
   PutProductFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: backend/functions/put-product/
       Events:
@@ -246,6 +262,8 @@ Resources:
   
   AuthUserFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: backend/functions/auth-user/
       Events:
@@ -254,15 +272,9 @@ Resources:
           Properties:
             Path: /auth/signup
             Method: POST
-        OptionsEvent:
-          Type: HttpApi
-          Properties:
-            Path: /auth/signup
-            Method: OPTIONS
       Environment:
         Variables:
-          AUTH_TABLE: ChatAppAuth
-          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+          AUTH_TABLE: !Ref AuthTable
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -270,10 +282,12 @@ Resources:
               Action:
                 - dynamodb:GetItem
                 - dynamodb:PutItem
-              Resource: !GetAtt Table.Arn
+              Resource: !GetAtt AuthTable.Arn
 
   AuthLoginFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: backend/functions/auth-login/
       Events:
@@ -282,25 +296,21 @@ Resources:
           Properties:
             Path: /auth/login
             Method: POST
-        OptionsEvent:
-          Type: HttpApi
-          Properties:
-            Path: /auth/login
-            Method: OPTIONS
       Environment:
         Variables:
-          AUTH_TABLE: ChatAppAuth
-          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+          AUTH_TABLE: !Ref AuthTable
       Policies:
         - Version: "2012-10-17"
           Statement:
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
-              Resource: !GetAtt Table.Arn
+              Resource: !GetAtt AuthTable.Arn
 
   CreateRoomFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: backend/functions/create-room/
       Events:
@@ -309,28 +319,28 @@ Resources:
           Properties:
             Path: /user/rooms
             Method: POST
-        OptionsEvent:
-          Type: HttpApi
-          Properties:
-            Path: /user/rooms
-            Method: OPTIONS
+
       Environment:
         Variables:
-          ROOM_TABLE: ChatAppRooms
-          MEMBERS_TABLE: ChatAppRoomMembers
-          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+          ROOM_TABLE: !Ref RoomTable
+          MEMBERS_TABLE: !Ref RoomMembersTable
       Policies:
         - Version: "2012-10-17"
           Statement:
             - Effect: Allow
               Action:
                 - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:Query
               Resource:
                 - !GetAtt RoomTable.Arn
                 - !GetAtt RoomMembersTable.Arn
+                - !Sub "${RoomMembersTable.Arn}/index/*"
 
   GetRoomFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: backend/functions/get-room/
       Events:
@@ -339,16 +349,11 @@ Resources:
           Properties:
             Path: /user/rooms/{room_id}
             Method: GET
-        OptionsEvent:
-          Type: HttpApi
-          Properties:
-            Path: /user/rooms/{room_id}
-            Method: OPTIONS
+
       Environment:
         Variables:
-          ROOM_TABLE: ChatAppRooms
-          MEMBERS_TABLE: ChatAppRoomMembers
-          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+          ROOM_TABLE: !Ref RoomTable
+          MEMBERS_TABLE: !Ref RoomMembersTable
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -362,6 +367,8 @@ Resources:
 
   GetUserRoomsFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: backend/functions/get-user-rooms/
       Events:
@@ -382,9 +389,8 @@ Resources:
             Method: OPTIONS
       Environment:
         Variables:
-          ROOM_TABLE: ChatAppRooms
-          MEMBERS_TABLE: ChatAppRoomMembers
-          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+          ROOM_TABLE: !Ref RoomTable
+          MEMBERS_TABLE: !Ref RoomMembersTable
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -399,6 +405,8 @@ Resources:
 
   GetMessagesFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: backend/functions/get-messages/
       Events:
@@ -407,15 +415,9 @@ Resources:
           Properties:
             Path: /rooms/{room_id}/messages
             Method: GET
-        OptionsEvent:
-          Type: HttpApi
-          Properties:
-            Path: /rooms/{room_id}/messages
-            Method: OPTIONS
       Environment:
         Variables:
-          MESSAGES_TABLE: ChatAppMessages
-          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+          MESSAGES_TABLE: !Ref MessagesTable
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -428,7 +430,6 @@ Resources:
   RoomTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: ChatAppRooms
       AttributeDefinitions:
         - AttributeName: room_id
           AttributeType: S
@@ -440,7 +441,6 @@ Resources:
   RoomMembersTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: ChatAppRoomMembers
       AttributeDefinitions:
         - AttributeName: room_id
           AttributeType: S
@@ -465,7 +465,6 @@ Resources:
   MessagesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: ChatAppMessages
       AttributeDefinitions:
         - AttributeName: room_id
           AttributeType: S
@@ -481,7 +480,6 @@ Resources:
   WebSocketConnectionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: ChatAppWebSocketConnections
       AttributeDefinitions:
         - AttributeName: connection_id
           AttributeType: S
@@ -501,6 +499,17 @@ Resources:
             ProjectionType: ALL
       BillingMode: PAY_PER_REQUEST
 
+  AuthTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
   Table:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -514,17 +523,29 @@ Resources:
       StreamSpecification:
         StreamViewType: NEW_AND_OLD_IMAGES
 
+  ServerlessHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - x-user-id
+        # AllowCredentials is omitted (treated as false)
+
   EventBus:
     Type: AWS::Events::EventBus
     Properties:
       Name: !Ref AWS::StackName
 
-  HttpApiCorsConfig:
-    Type: AWS::ApiGatewayV2::Stage
-    DependsOn: ServerlessHttpApi
-    Properties:
-      ApiId: !Ref ServerlessHttpApi
-      StageName: "$default"
 
 Outputs:
   ApiUrl:

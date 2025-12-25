@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/Kai-Kota/ChatApp2/backend/types"
@@ -32,20 +33,27 @@ func NewRoomStore(ctx context.Context, roomTableName, membersTableName string) I
 	var cfg aws.Config
 	var err error
 
-	region := "ap-northeast-1"
-	endpoint := "http://host.docker.internal:8000"
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		region = "ap-northeast-1"
+	}
+	endpoint := os.Getenv("DYNAMODB_ENDPOINT")
 
-	customResolver := aws.EndpointResolverWithOptionsFunc(
-		func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			if service == dynamodb.ServiceID {
-				return aws.Endpoint{
-					URL:               endpoint,
-					HostnameImmutable: true,
-				}, nil
-			}
-			return aws.Endpoint{}, &aws.EndpointNotFoundError{}
-		})
-	cfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(region), config.WithEndpointResolverWithOptions(customResolver))
+	if endpoint != "" {
+		customResolver := aws.EndpointResolverWithOptionsFunc(
+			func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+				if service == dynamodb.ServiceID {
+					return aws.Endpoint{
+						URL:               endpoint,
+						HostnameImmutable: true,
+					}, nil
+				}
+				return aws.Endpoint{}, &aws.EndpointNotFoundError{}
+			})
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(region), config.WithEndpointResolverWithOptions(customResolver))
+	} else {
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	}
 	if err != nil {
 		panic(err)
 	}

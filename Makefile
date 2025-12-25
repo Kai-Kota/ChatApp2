@@ -1,5 +1,5 @@
 STACK_NAME ?= ChatApp2
-FUNCTIONS := get-product put-product
+FUNCTIONS := auth-login auth-user create-room get-messages get-product get-room get-user-rooms put-product ws-connect ws-disconnect ws-sendmessage
 REGION := ap-northeast-1
 
 # To try different version of Go
@@ -15,19 +15,19 @@ build:
 		${MAKE} ${MAKEOPTS} $(foreach function,${FUNCTIONS}, build-${function})
 
 build-%:
-		cd functions/$* && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 ${GO} build -o bootstrap
+		cd backend/functions/$* && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 ${GO} build -o bootstrap
 
 build-gcc:
 		${MAKE} ${MAKEOPTS} $(foreach function,${FUNCTIONS}, build-gcc-${function})
 
 build-gcc-%:
-		cd functions/$* && GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=${CC} ${GO} build -o bootstrap
+		cd backend/functions/$* && GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=${CC} ${GO} build -o bootstrap
 
 build-gcc-optimized:
 		${MAKE} ${MAKEOPTS} $(foreach function,${FUNCTIONS}, build-gcc-optimized-${function})
 
 build-gcc-optimized-%:
-		cd functions/$* && GOOS=linux GOARCH=arm64 GCCGO=${GCCGO} ${GO} build -compiler gccgo -gccgoflags '-static -Ofast -march=armv8.2-a+fp16+rcpc+dotprod+crypto -mtune=neoverse-n1 -moutline-atomics' -o bootstrap
+		cd backend/functions/$* && GOOS=linux GOARCH=arm64 GCCGO=${GCCGO} ${GO} build -compiler gccgo -gccgoflags '-static -Ofast -march=armv8.2-a+fp16+rcpc+dotprod+crypto -mtune=neoverse-n1 -moutline-atomics' -o bootstrap
 
 invoke:
 	@sam local invoke --env-vars env-vars.json GetProductsFunction
@@ -45,7 +45,7 @@ invoke-stream:
 	@sam local invoke --env-vars env-vars.json --event functions/products-stream/event.json DDBStreamsFunction
 
 clean:
-	@rm $(foreach function,${FUNCTIONS}, functions/${function}/bootstrap)
+	@rm $(foreach function,${FUNCTIONS}, backend/functions/${function}/bootstrap)
 
 deploy:
 	if [ -f samconfig.toml ]; \

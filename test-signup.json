@@ -1,0 +1,1 @@
+{"version":"2.0","routeKey":"POST /auth/signup","rawPath":"/auth/signup","requestContext":{"http":{"method":"POST"}},"body":"{\"user_name\":\"testuser\",\"password\":\"testpass123\"}"}

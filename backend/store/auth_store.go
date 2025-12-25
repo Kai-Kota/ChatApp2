@@ -66,12 +66,12 @@ func NewAuthStore(ctx context.Context, tableName string) IAuthStore {
 
 func (s *AuthStore) Signup(userName, password string) error {
 	type userItem struct {
-		ID       string `dynamodbav:"id"`
+		UserID   string `dynamodbav:"user_id"`
 		UserName string `dynamodbav:"user_name"`
 		Password string `dynamodbav:"password"`
 	}
 
-	item := userItem{ID: userName, UserName: userName, Password: password}
+	item := userItem{UserID: userName, UserName: userName, Password: password}
 	av, err := attributevalue.MarshalMap(item)
 	if err != nil {
 		return err
@@ -80,8 +80,8 @@ func (s *AuthStore) Signup(userName, password string) error {
 	_, err = s.client.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		TableName:                aws.String(s.tableName),
 		Item:                     av,
-		ConditionExpression:      aws.String("attribute_not_exists(#id)"),
-		ExpressionAttributeNames: map[string]string{"#id": "id"},
+		ConditionExpression:      aws.String("attribute_not_exists(#user_id)"),
+		ExpressionAttributeNames: map[string]string{"#user_id": "user_id"},
 	})
 	if err != nil {
 		return err
@@ -90,11 +90,11 @@ func (s *AuthStore) Signup(userName, password string) error {
 }
 
 func (s *AuthStore) Login(userName, password string) (string, error) {
-	// Fetch user by id
+	// Fetch user by user_id
 	out, err := s.client.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String(s.tableName),
 		Key: map[string]ddbtypes.AttributeValue{
-			"id": &ddbtypes.AttributeValueMemberS{Value: userName},
+			"user_id": &ddbtypes.AttributeValueMemberS{Value: userName},
 		},
 		ConsistentRead: aws.Bool(true),
 	})
@@ -106,7 +106,7 @@ func (s *AuthStore) Login(userName, password string) (string, error) {
 	}
 
 	type userItem struct {
-		ID       string `dynamodbav:"id"`
+		UserID   string `dynamodbav:"user_id"`
 		UserName string `dynamodbav:"user_name"`
 		Password string `dynamodbav:"password"`
 	}
